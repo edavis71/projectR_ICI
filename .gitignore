@@ -1,0 +1,13 @@
+GDCdata/
+GSE120575/
+dists.per_pattern.per_cell/
+dists.per_pattern.per_cell.zip
+MANIFEST.txt
+NK_figures/
+NK_figures.zip
+*\.pdf
+*\.tiff
+writeups/
+*\.rds
+TCGA_RDS/
+*\.RData
