@@ -58,12 +58,14 @@ for (ct in cancer_types){
 #############################################################################
 metaTCGA <- NULL # reinit
 expTCGA <- NULL # reinit
+c <- 0
 for (ct in cancer_types){
-  print(ct)
+  c <- c + 1
+  print(paste0("Saving and combining data from ", ct, " (", c, "/",
+              length(cancer_types), ")"))
   # extract cancer speicfic metadata
   tempmeta <- TCGA_data[[ct]][["meta"]]
   tempmeta$cancertype <- rep(ct, nrow(tempmeta))
-  
   # fix a few cols manually that are leading to row_bind errors due to type
   if ("paper_miRNA.cluster" %in% colnames(tempmeta)){
     tempmeta$paper_miRNA.cluster <- as.numeric(tempmeta$paper_miRNA.cluster)
@@ -75,11 +77,85 @@ for (ct in cancer_types){
     tempmeta$paper_Batch <- as.numeric(tempmeta$paper_Batch)
   }
   if ("paper_RPPA" %in% colnames(tempmeta)){
-    tempmeta$paper_Batch <- as.numeric(tempmeta$paper_RPPA)
+    tempmeta$paper_RPPA <- as.numeric(tempmeta$paper_RPPA)
   }
-  
+  if ("paper_Purity" %in% colnames(tempmeta)){
+    tempmeta$paper_Purity <- as.numeric(tempmeta$paper_Purity)
+  }
+  if ("paper_EBV.positive" %in% colnames(tempmeta)){
+    tempmeta$paper_EBV.positive <- as.numeric(tempmeta$paper_EBV.positive)
+  }
+  if ("paper_TP53.mutation" %in% colnames(tempmeta)){
+    tempmeta$paper_TP53.mutation <- as.numeric(tempmeta$paper_TP53.mutation)
+  }
+  if ("paper_ABSOLUTE.Purity" %in% colnames(tempmeta)){
+    tempmeta$paper_ABSOLUTE.Purity <- as.numeric(tempmeta$paper_ABSOLUTE.Purity)
+  }
+  if ("paper_PIK3CA.mutation" %in% colnames(tempmeta)){
+    tempmeta$paper_PIK3CA.mutation <- as.numeric(tempmeta$paper_PIK3CA.mutation)
+  }
+  if ("paper_KRAS.mutation" %in% colnames(tempmeta)){
+    tempmeta$paper_KRAS.mutation <- as.numeric(tempmeta$paper_KRAS.mutation)
+  }
+  if ("paper_ARID1A.mutation" %in% colnames(tempmeta)){
+    tempmeta$paper_ARID1A.mutation <- as.numeric(tempmeta$paper_ARID1A.mutation)
+  }
+  if ("paper_purity" %in% colnames(tempmeta)){
+    tempmeta$paper_purity <- as.numeric(tempmeta$paper_purity)
+  }
+  if ("paper_Subclonal_genome_fraction" %in% colnames(tempmeta)){
+    tempmeta$paper_Subclonal_genome_fraction <- as.numeric(tempmeta$paper_Subclonal_genome_fraction)
+  }
+  if ("paper_age_at_diagnosis" %in% colnames(tempmeta)){
+    tempmeta$paper_age_at_diagnosis <- as.numeric(tempmeta$paper_age_at_diagnosis)
+  }
+  if ("paper_age_at_initial_pathologic_diagnosis" %in% colnames(tempmeta)){
+    tempmeta$paper_age_at_initial_pathologic_diagnosis <- as.numeric(tempmeta$paper_age_at_initial_pathologic_diagnosis)
+  }
+  if ("paper_ploidy" %in% colnames(tempmeta)){
+    tempmeta$paper_ploidy <- as.numeric(tempmeta$paper_ploidy)
+  }
+  if ("paper_Ploidy" %in% colnames(tempmeta)){
+    tempmeta$paper_Ploidy <- as.numeric(tempmeta$paper_Ploidy)
+  }
+  if ("paper_BRAF_mut" %in% colnames(tempmeta)){
+    tempmeta$paper_BRAF_mut <- as.numeric(tempmeta$paper_BRAF_mut)
+  }
+  if ("paper_HRAS_mut" %in% colnames(tempmeta)){
+    tempmeta$paper_HRAS_mut <- as.numeric(tempmeta$paper_HRAS_mut)
+  }
+  if ("paper_IDH1_mut" %in% colnames(tempmeta)){
+    tempmeta$paper_IDH1_mut <- as.numeric(tempmeta$paper_IDH1_mut)
+  }
+  if ("paper_RB1_mut" %in% colnames(tempmeta)){
+    tempmeta$paper_RB1_mut <- as.numeric(tempmeta$paper_RB1_mut)
+  }
+  if ("paper_PTEN_mut" %in% colnames(tempmeta)){
+    tempmeta$paper_PTEN_mut <- as.numeric(tempmeta$paper_PTEN_mut)
+  }
+  if ("paper_TP53_mut" %in% colnames(tempmeta)){
+    tempmeta$paper_TP53_mut <- as.numeric(tempmeta$paper_TP53_mut)
+  }
+  if ("paper_BAP1" %in% colnames(tempmeta)){
+    tempmeta$paper_BAP1 <- as.character(tempmeta$paper_BAP1)
+  }
+  if ("paper_miRNA" %in% colnames(tempmeta)){
+    tempmeta$paper_miRNA <- as.numeric(tempmeta$paper_miRNA)
+  }
+  if ("paper_Number.pack.years.smoked" %in% colnames(tempmeta)){
+    tempmeta$paper_Number.pack.years.smoked <- as.numeric(tempmeta$paper_Number.pack.years.smoked)
+  }
+  if ("paper_Number.pack.years.smoked" %in% colnames(tempmeta)){
+    tempmeta$paper_Number.pack.years.smoked <- as.numeric(tempmeta$paper_Number.pack.years.smoked)
+  }
+  if ("paper_Age.at.diagnosis" %in% colnames(tempmeta)){
+    tempmeta$paper_Age.at.diagnosis <- as.character(tempmeta$paper_Age.at.diagnosis)
+  }
+  if ("paper_mRNA.cluster" %in% colnames(tempmeta)){
+    tempmeta$paper_mRNA.cluster <- as.numeric(tempmeta$paper_mRNA.cluster)
+  }
   # save this file
-  saveRDS(tempmeta, paste0("TCGA_RDS/TCGA.legacy.expression.", ct, ".rds"))
+  saveRDS(tempmeta, paste0("TCGA_RDS/TCGA.legacy.meta.", ct, ".rds"))
   # add to combined meta dataframe
   if (is.null(metaTCGA)){
     metaTCGA <- tempmeta
@@ -90,9 +166,8 @@ for (ct in cancer_types){
   }
   # extract cancer speicfic expression data
   tempexp <- TCGA_data[[ct]][["exp"]]
-  tempexp$cancertype <- rep(ct, nrow(tempexp))
   # save this file
-  saveRDS(tempexp, paste0("TCGA_RDS/TCGA.legacy.meta.", ct, ".rds"))
+  saveRDS(tempexp, paste0("TCGA_RDS/TCGA.legacy.expression.", ct, ".rds"))
   # add to combined meta dataframe
   if (is.null(expTCGA)){
     expTCGA <- tempexp
@@ -101,11 +176,8 @@ for (ct in cancer_types){
   }
 }
 
+#warnings() # all should just be coercion from factors to characters
+
 # save combined files as rds
 saveRDS(metaTCGA, "TCGA_RDS/TCGA.legacy.meta.rds")
 saveRDS(expTCGA, "TCGA_RDS/TCGA.legacy.expression.rds")
-
-View(TCGA_data[["TCGA-LGG"]][["meta"]]$paper_Batch)
-View(metaTCGA$paper_Genome.doublings)
-
-  
