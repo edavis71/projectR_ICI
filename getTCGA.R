@@ -23,8 +23,6 @@ setwd('/Users/michaelkessler/Dropbox/Workspace/POSTDOC/ImmunoOncology/projectR_I
 project_IDs <- TCGAbiolinks:::getGDCprojects()$project_id
 # get "TCGA" named projects
 cancer_types <- project_IDs[grep("TCGA", TCGAbiolinks:::getGDCprojects()$project_id)]
-# add a few other interesting projects
-cancer_types <- c(cancer_types)
 # download and parse data per cancer type using TCGABioLinks
 TCGA_data <- list() # list of tissue specific TCGA data frames
 for (ct in cancer_types){
