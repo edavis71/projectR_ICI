@@ -15,3 +15,5 @@ TCGA_RDS/
 1-s2.0-S1074761318301213-mmc2.xlsx
 TCGA.legacy.expression.SKCM.GEP.txt
 xCell_TCGA_RSEM.txt
+transferlearning.TCGA.old.R
+TCGA_GEPs/
