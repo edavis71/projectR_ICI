@@ -163,11 +163,13 @@ dat.df <- data.frame(yvals = factor(yvals, levels = yvals),
                      CIhigh = CIhigh,
                      pval = pval)
 # make plot using ggplot
+plotcols <- rep("black", nrow(dat.df))
+plotcols[dat.df$pval <= 0.05] <- "red"
 p <- ggplot(dat.df, aes(x = xvals, y = yvals, size = -log10(pval))) + 
   geom_vline(aes(xintercept = 0), size = .25, linetype = "dashed") + 
   geom_errorbarh(aes(xmax = CIhigh, xmin = CIlow), size = .5, height = 
                    .2, color = "gray50") +
-  geom_point(color = "black") +
+  geom_point(color = plotcols) +
   #coord_trans(x = scales:::exp_trans(10)) +
   #scale_x_continuous(breaks = log10(seq(0.1, 2.5, 0.1)), labels = seq(0.1, 2.5, 0.1),
             #         limits = log10(c(0.09,2.5))) +
@@ -207,11 +209,13 @@ dat.df <- data.frame(yvals = factor(yvals, levels = yvals),
                      CIhigh = CIhigh,
                      pval = pval)
 # make plot using ggplot
+plotcols <- rep("black", nrow(dat.df))
+plotcols[dat.df$pval <= 0.05] <- "red"
 p <- ggplot(dat.df, aes(x = xvals, y = yvals, size = -log10(pval))) + 
   geom_vline(aes(xintercept = 0), size = .25, linetype = "dashed") + 
   geom_errorbarh(aes(xmax = CIhigh, xmin = CIlow), size = .5, height = 
                    .2, color = "gray50") +
-  geom_point(color = "black") +
+  geom_point(color = plotcols) +
   #coord_trans(x = scales:::exp_trans(10)) +
   #scale_x_continuous(breaks = log10(seq(0.1, 2.5, 0.1)), labels = seq(0.1, 2.5, 0.1),
   #         limits = log10(c(0.09,2.5))) +
@@ -248,11 +252,13 @@ dat.df <- data.frame(yvals = factor(yvals, levels = yvals),
                      CIhigh = CIhigh,
                      pval = pval)
 # make plot using ggplot
+plotcols <- rep("black", nrow(dat.df))
+plotcols[dat.df$pval <= 0.05] <- "red"
 p <- ggplot(dat.df, aes(x = xvals, y = yvals, size = -log10(pval))) + 
   geom_vline(aes(xintercept = 0), size = .25, linetype = "dashed") + 
   geom_errorbarh(aes(xmax = CIhigh, xmin = CIlow), size = .5, height = 
                    .2, color = "gray50") +
-  geom_point(color = "black") +
+  geom_point(color = plotcols) +
   #coord_trans(x = scales:::exp_trans(10)) +
   #scale_x_continuous(breaks = log10(seq(0.1, 2.5, 0.1)), labels = seq(0.1, 2.5, 0.1),
   #         limits = log10(c(0.09,2.5))) +
@@ -266,7 +272,8 @@ p
 dev.off()
 
 # run linear models per cancer type
-
+ct.names <- c()
+ct.out <- c()
 for (ct in levels(TL.proj$cancertype)){
   TL.proj.ct <- subset(TL.proj, cancertype == ct)
   lm.ct <- lm(TL.proj.ct$OS.time~TL.proj.ct$Pattern_1+
@@ -281,10 +288,37 @@ for (ct in levels(TL.proj$cancertype)){
                 TL.proj.ct$Pattern_18+TL.proj.ct$Pattern_19+
                 TL.proj.ct$Pattern_20+TL.proj.ct$Pattern_21+
                 TL.proj.ct$age)
-  print_output <- paste0(ct,": ",rownames(summary(lm.ct)$coefficients)[8]," ",paste0(summary(lm.ct)$coefficients[8,],collapse = " "))
-  print(print_output)
+  #print_output <- paste0(ct,": ",rownames(summary(lm.ct)$coefficients)[8]," ",paste0(summary(lm.ct)$coefficients[8,],collapse = " "))
+  ct.names <- append(ct.names, ct)
+  ct.out <- rbind(ct.out, summary(lm.ct)$coefficients[8,])
+  #print(print_output)
 }
-# Note: from output above, pattern 7 positively associated - SKCM, PRAD, BRCA
+# convert output to df, define CI, and plot
+ct.df <- as.data.frame(ct.out)
+ct.df$Names <- ct.names
+ct.df$CIlow <- ct.df$Estimate - (1.96*ct.df$`Std. Error`)
+ct.df$CIhigh <- ct.df$Estimate + (1.96*ct.df$`Std. Error`)
+colnames(ct.df)[4] <- "pval"
+# plot results
+plotcols <- rep("black", nrow(ct.df))
+plotcols[ct.df$pval <= 0.05] <- "red"
+p <- ggplot(ct.df, aes(x = Estimate, y = Names, size = -log10(pval))) + 
+  geom_vline(aes(xintercept = 0), size = .25, linetype = "dashed") + 
+  geom_errorbarh(aes(xmax = CIhigh, xmin = CIlow), size = .5, height = 
+                   .2, color = "gray50") +
+  geom_point(color = plotcols) +
+  #coord_trans(x = scales:::exp_trans(10)) +
+  #scale_x_continuous(breaks = log10(seq(0.1, 2.5, 0.1)), labels = seq(0.1, 2.5, 0.1),
+  #         limits = log10(c(0.09,2.5))) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank()) +
+  ylab("") +
+  xlab("Standardized Coefficient")
+
+# save at size height = 14, width = 7
+pdf("ICI_projectR.TCGA.P7_all.pdf", height = 14, width = 7)
+p
+dev.off()
 
 # explore patterns within SKCM in great depth
 TL.proj.SKCM <- subset(TL.proj, cancertype == "TCGA-SKCM")
@@ -304,22 +338,22 @@ xvals <- lm.SKCM.coef[grep("Pattern", rownames(lm.SKCM.coef)),1]
 CIlow <- xvals - (1.96*lm.SKCM.coef[grep("Pattern", rownames(lm.SKCM.coef)),2])
 CIhigh <- xvals + (1.96*lm.SKCM.coef[grep("Pattern", rownames(lm.SKCM.coef)),2])
 pval <- lm.SKCM.coef[grep("Pattern", rownames(lm.SKCM.coef)),4]
-yvals <- gsub("TL.proj$", "", names(xvals), fixed = T)
-# fix yvals order
-yvals_p7 <- yvals[1]
-yvals_order <- yvals[2:length(yvals)]
-yvals_order <- c(yvals_order[1:6], yvals_p7, yvals_order[7:length(yvals_order)])
+yvals <- gsub("TL.proj.SKCM$", "", names(xvals), fixed = T)
+yvals_order <- yvals
 dat.df <- data.frame(yvals = factor(yvals, levels = yvals_order),
                      xvals = xvals,
                      CIlow = CIlow,
                      CIhigh = CIhigh,
                      pval = pval)
+
 # make plot using ggplot
+plotcols <- rep("black", nrow(dat.df))
+plotcols[dat.df$pval <= 0.05] <- "red"
 p <- ggplot(dat.df, aes(x = xvals, y = yvals, size = -log10(pval))) + 
   geom_vline(aes(xintercept = 0), size = .25, linetype = "dashed") + 
   geom_errorbarh(aes(xmax = CIhigh, xmin = CIlow), size = .5, height = 
                    .2, color = "gray50") +
-  geom_point(color = "black") +
+  geom_point(color = plotcols) +
   #coord_trans(x = scales:::exp_trans(10)) +
   #scale_x_continuous(breaks = log10(seq(0.1, 2.5, 0.1)), labels = seq(0.1, 2.5, 0.1),
   #         limits = log10(c(0.09,2.5))) +
@@ -328,7 +362,28 @@ p <- ggplot(dat.df, aes(x = xvals, y = yvals, size = -log10(pval))) +
   ylab("") +
   xlab("Standardized Coefficient")
 
-pdf("ICI_projectR.TCGA.lm.SKCM.pdf")
+# save at size height = 15, width = 5
+pdf("ICI_projectR.TCGA.lm.SKCM.h15.w5.pdf", height = 15, width = 5)
+p
+dev.off()
+# save at size height = 15, width = 10
+pdf("ICI_projectR.TCGA.lm.SKCM.h15.w10.pdf", height = 15, width = 10)
+p
+dev.off()
+# save at size height = 15, width = 8
+pdf("ICI_projectR.TCGA.lm.SKCM.h15.w8.pdf", height = 15, width = 8)
+p
+dev.off()
+# save at size height = 12, width = 8
+pdf("ICI_projectR.TCGA.lm.SKCM.h12.w8.pdf", height = 12, width = 8)
+p
+dev.off()
+# save at size height = 15, width = 6
+pdf("ICI_projectR.TCGA.lm.SKCM.h15.w6.pdf", height = 15, width = 6)
+p
+dev.off()
+# save at size height = 12, width = 6
+pdf("ICI_projectR.TCGA.lm.SKCM.h12.w6.pdf", height = 12, width = 6)
 p
 dev.off()
 
@@ -337,31 +392,176 @@ expTCGA.t <- t(expTCGA)
 expTCGA.t.B7 <- expTCGA.t[,which(colnames(expTCGA.t) == "CD80" | colnames(expTCGA.t) == "CD86")]
 mtch <- match(rownames(TL.proj), rownames(expTCGA.t.B7))
 TL.proj.B7 <- cbind(TL.proj, expTCGA.t.B7[mtch,])
-patterns.B7.1.all <- cor(TL.proj.B7[,c(1:21),], TL.proj.B7[,32])
-patterns.B7.2.all <- cor(TL.proj.B7[,c(1:21),], TL.proj.B7[,33])
+
+# all TCGA samples and B7.1
+patterns.B7.1.all <- apply(TL.proj.B7[,c(1:21)], 2,
+              function(a){
+                res <- cor.test(a, TL.proj.B7[,32])
+                return(c(res$estimate, res$conf.int, res$p.value))})
+patterns.B7.1.df <- as.data.frame(t(patterns.B7.1.all))
+colnames(patterns.B7.1.df) <- c("Estimate","CIlow",
+                                 "CIhigh", "pval")
+patterns.B7.1.df$pattern <- rownames(patterns.B7.1.df)
+patterns.B7.1.df$plotcol <- "black"
+patterns.B7.1.df$plotcol[patterns.B7.1.df$pval <= 0.05] <- "red"
+# write data to outfile
+write.csv(patterns.B7.1.df, file = "patterns.B7.1.csv",
+          quote = F, row.names = F)
+# plot
+# make plot using ggplot
+p <- ggplot(patterns.B7.1.df, aes(x = Estimate, y = pattern,
+                                  size = -log10(pval))) + 
+  geom_vline(aes(xintercept = 0), size = .25, linetype = "dashed") + 
+  geom_errorbarh(aes(xmax = CIhigh, xmin = CIlow), size = .5, height = 
+                   .2, color = "grey") +
+  geom_point(color = patterns.B7.1.df$plotcol) +
+  #coord_trans(x = scales:::exp_trans(10)) +
+  #scale_x_continuous(breaks = log10(seq(0.1, 2.5, 0.1)), labels = seq(0.1, 2.5, 0.1),
+  #         limits = log10(c(0.09,2.5))) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank()) +
+  ylab("") +
+  xlab("Pearson Correlation Coefficient")
+
+pdf("patterns.B7.1.Pearson.pdf", height = 12, width = 6)
+p
+dev.off()
+
+# all TCGA samples and B7.2
+
+patterns.B7.2.all <- apply(TL.proj.B7[,c(1:21)], 2,
+                           function(a){
+                             res <- cor.test(a, TL.proj.B7[,33])
+                             return(c(res$estimate, res$conf.int, res$p.value))})
+patterns.B7.2.df <- as.data.frame(t(patterns.B7.2.all))
+colnames(patterns.B7.2.df) <- c("Estimate","CIlow",
+                                "CIhigh", "pval")
+# if pval is zero, set to min for graphing
+patterns.B7.2.df$pval[patterns.B7.2.df$pval == 0] <- min(patterns.B7.2.df$pval[patterns.B7.2.df$pval != 0])
+
+patterns.B7.2.df$pattern <- rownames(patterns.B7.2.df)
+patterns.B7.2.df$plotcol <- "black"
+patterns.B7.2.df$plotcol[patterns.B7.2.df$pval <= 0.05] <- "red"
+#View(patterns.B7.2.df)
+# write data to outfile
+write.csv(patterns.B7.2.df, file = "patterns.B7.2.csv",
+          quote = F, row.names = F)
+# plot
+# make plot using ggplot
+p <- ggplot(patterns.B7.2.df, aes(x = Estimate, y = pattern,
+                                  size = -log10(pval))) + 
+  geom_vline(aes(xintercept = 0), size = .25, linetype = "dashed") + 
+  geom_errorbarh(aes(xmax = CIhigh, xmin = CIlow), size = .5, height = 
+                   .2, color = "grey") +
+  geom_point(color = patterns.B7.2.df$plotcol) +
+  #coord_trans(x = scales:::exp_trans(10)) +
+  #scale_x_continuous(breaks = log10(seq(0.1, 2.5, 0.1)), labels = seq(0.1, 2.5, 0.1),
+  #         limits = log10(c(0.09,2.5))) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank()) +
+  ylab("") +
+  xlab("Pearson Correlation Coefficient")
+
+pdf("patterns.B7.2.Pearson.pdf", height = 12, width = 6)
+p
+dev.off()
+
+# now repeat but just with SKCM
 TL.proj.B7.SKCM <- TL.proj.B7[TL.proj.B7$cancertype == "TCGA-SKCM",]
-patterns.B7.1.SKCM <- cor(TL.proj.B7.SKCM[,c(1:21),], TL.proj.B7.SKCM[,32])
-patterns.B7.2.SKCM <- cor(TL.proj.B7.SKCM[,c(1:21),], TL.proj.B7.SKCM[,33])
 
-pdf("patterns.B7.1.all.pdf")
-barplot(patterns.B7.1.all[,1], las = 2,
-        main = "patterns.B7.1.all", ylab = "Pearson Correlation")
+# all TCGA samples and B7.1
+patterns.B7.1.SKCM <- apply(TL.proj.B7.SKCM[,c(1:21)], 2,
+                           function(a){
+                             res <- cor.test(a, TL.proj.B7.SKCM[,32])
+                             return(c(res$estimate, res$conf.int, res$p.value))})
+patterns.B7.1.SKCM.df <- as.data.frame(t(patterns.B7.1.SKCM))
+colnames(patterns.B7.1.SKCM.df) <- c("Estimate","CIlow",
+                                "CIhigh", "pval")
+patterns.B7.1.SKCM.df$pattern <- rownames(patterns.B7.1.SKCM.df)
+patterns.B7.1.SKCM.df$plotcol <- "black"
+patterns.B7.1.SKCM.df$plotcol[patterns.B7.1.SKCM.df$pval <= 0.05] <- "red"
+# write data to outfile
+write.csv(patterns.B7.1.SKCM.df, file = "patterns.B7.1.SKCM.csv",
+          quote = F, row.names = F)
+# plot
+# make plot using ggplot
+p <- ggplot(patterns.B7.1.SKCM.df, aes(x = Estimate, y = pattern,
+                                  size = -log10(pval))) + 
+  geom_vline(aes(xintercept = 0), size = .25, linetype = "dashed") + 
+  geom_errorbarh(aes(xmax = CIhigh, xmin = CIlow), size = .5, height = 
+                   .2, color = "grey") +
+  geom_point(color = patterns.B7.1.SKCM.df$plotcol) +
+  #coord_trans(x = scales:::exp_trans(10)) +
+  #scale_x_continuous(breaks = log10(seq(0.1, 2.5, 0.1)), labels = seq(0.1, 2.5, 0.1),
+  #         limits = log10(c(0.09,2.5))) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank()) +
+  ylab("") +
+  xlab("Pearson Correlation Coefficient")
+
+pdf("patterns.B7.1.SKCM.Pearson.pdf", height = 12, width = 6)
+p
 dev.off()
 
-pdf("patterns.B7.2.all.pdf")
-barplot(patterns.B7.2.all[,1], las = 2,
-        main = "patterns.B7.2.all", ylab = "Pearson Correlation")
+# all TCGA samples and B7.2
+
+patterns.B7.2.SKCM <- apply(TL.proj.B7.SKCM[,c(1:21)], 2,
+                           function(a){
+                             res <- cor.test(a, TL.proj.B7.SKCM[,33])
+                             return(c(res$estimate, res$conf.int, res$p.value))})
+patterns.B7.2.SKCM.df <- as.data.frame(t(patterns.B7.2.SKCM))
+colnames(patterns.B7.2.SKCM.df) <- c("Estimate","CIlow",
+                                "CIhigh", "pval")
+# if pval is zero, set to min for graphing
+patterns.B7.2.SKCM.df$pval[patterns.B7.2.SKCM.df$pval == 0] <- min(patterns.B7.2.SKCM.df$pval[patterns.B7.2.SKCM.df$pval != 0])
+
+patterns.B7.2.SKCM.df$pattern <- rownames(patterns.B7.2.SKCM.df)
+patterns.B7.2.SKCM.df$plotcol <- "black"
+patterns.B7.2.SKCM.df$plotcol[patterns.B7.2.SKCM.df$pval <= 0.05] <- "red"
+#View(patterns.B7.2.df)
+# write data to outfile
+write.csv(patterns.B7.2.SKCM.df, file = "patterns.B7.2.SKCM.csv",
+          quote = F, row.names = F)
+# plot
+# make plot using ggplot
+p <- ggplot(patterns.B7.2.SKCM.df, aes(x = Estimate, y = pattern,
+                                  size = -log10(pval))) + 
+  geom_vline(aes(xintercept = 0), size = .25, linetype = "dashed") + 
+  geom_errorbarh(aes(xmax = CIhigh, xmin = CIlow), size = .5, height = 
+                   .2, color = "grey") +
+  geom_point(color = patterns.B7.2.SKCM.df$plotcol) +
+  #coord_trans(x = scales:::exp_trans(10)) +
+  #scale_x_continuous(breaks = log10(seq(0.1, 2.5, 0.1)), labels = seq(0.1, 2.5, 0.1),
+  #         limits = log10(c(0.09,2.5))) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank()) +
+  ylab("") +
+  xlab("Pearson Correlation Coefficient")
+
+pdf("patterns.B7.2.SKCM.Pearson.pdf", height = 12, width = 6)
+p
 dev.off()
 
-pdf("patterns.B7.1.SKCM.pdf")
-barplot(patterns.B7.1.SKCM[,1], las = 2,
-        main = "patterns.B7.1.SKCM", ylab = "Pearson Correlation")
-dev.off()
-
-pdf("patterns.B7.2.SKCM.pdf")
-barplot(patterns.B7.2.SKCM[,1], las = 2,
-        main = "patterns.B7.2.SKCM", ylab = "Pearson Correlation")
-dev.off()
+# comment out barplots
+# pdf("patterns.B7.1.all.pdf")
+# barplot(patterns.B7.1.all[,1], las = 2,
+#         main = "patterns.B7.1.all", ylab = "Pearson Correlation")
+# dev.off()
+# 
+# pdf("patterns.B7.2.all.pdf")
+# barplot(patterns.B7.2.all[,1], las = 2,
+#         main = "patterns.B7.2.all", ylab = "Pearson Correlation")
+# dev.off()
+# 
+# pdf("patterns.B7.1.SKCM.pdf")
+# barplot(patterns.B7.1.SKCM[,1], las = 2,
+#         main = "patterns.B7.1.SKCM", ylab = "Pearson Correlation")
+# dev.off()
+# 
+# pdf("patterns.B7.2.SKCM.pdf")
+# barplot(patterns.B7.2.SKCM[,1], las = 2,
+#         main = "patterns.B7.2.SKCM", ylab = "Pearson Correlation")
+# dev.off()
 
 # Note: The analysis below (using estimates from xCell and CIBERSORTx)
 # did not identify any interesting relationships
@@ -511,55 +711,55 @@ dev.off()
 # predicted <- predict(model_rf, testData2)
 # 
 # plot(testData$Sensitivity, predicted)
-TL.proj.LUSC <- subset(TL.proj, cancertype == "TCGA-LUSC")
-# Train random forest model to predict survival using patterns + age in melanoma (SKCM) tumors
-y <- TL.proj.LUSC$OS.time
-x <- TL.proj.LUSC[,c(1:21,24)]
-rf.in <- cbind(y,x)
-# scale age - you already scaled the patterns
-rf.in$age <- scale(rf.in$age, center = T, scale = T)
-# remove NAs
-rf.in <- rf.in[-which(apply(rf.in, 1, function(a) sum(is.na(a)) > 0 )),]
-model_rf = train(y ~ ., data=rf.in, method='rf')
-model_rf$results
-plot(model_rf)
-varimp_mars <- varImp(model_rf)
-plot(varimp_mars, main="Variable Importance with RF")
-
-model_rf$finalModel
-
-# testData2 <- predict(preProcess_range_model, testData)
-predicted <- predict(model_rf, rf.in)
-cor(rf.in$y, predicted)
-
-myTrainingControl <- trainControl(method = "repeatedcv", 
-                                  number = 10, 
-                                  savePredictions = TRUE,
-                                  repeats = 5,
-                                  #classProbs = TRUE,
-                                  verboseIter = TRUE)
-
-randomForestFit = train(x = rf.in[,2:23], 
-                        y = rf.in$y, 
-                        method = "rf", 
-                        trControl = myTrainingControl) 
-                        #preProcess = c("center","scale"))
-
-pdf("ICI_projectR.TCGA.rf.SKCM.varImp.pdf")
-plot(varImp(randomForestFit))
-dev.off()
-
-randomForestFit$finalModel
-
-eval.rf <- evalm(randomForestFit)
-
-## get roc curve plotted in ggplot2
-
-x$roc
+# TL.proj.SKCM <- subset(TL.proj, cancertype == "TCGA-SKCM")
+# # Train random forest model to predict survival using patterns + age in melanoma (SKCM) tumors
+# y <- TL.proj.SKCM$OS.time
+# x <- TL.proj.SKCM[,c(1:21,24)]
+# rf.in <- cbind(y,x)
+# # scale age - you already scaled the patterns
+# rf.in$age <- scale(rf.in$age, center = T, scale = T)
+# # remove NAs
+# rf.in <- rf.in[-which(apply(rf.in, 1, function(a) sum(is.na(a)) > 0 )),]
+# model_rf = train(y ~ ., data=rf.in, method='lm')
+# model_rf$results
+# plot(model_rf)
+# varimp_mars <- varImp(model_rf)
+# plot(varimp_mars, main="Variable Importance with RF")
+# 
+# model_rf$finalModel
+# 
+# # testData2 <- predict(preProcess_range_model, testData)
+# predicted <- predict(model_rf, rf.in)
+# cor(rf.in$y, predicted)
+# 
+# myTrainingControl <- trainControl(method = "repeatedcv", 
+#                                   number = 10, 
+#                                   savePredictions = TRUE,
+#                                   repeats = 5,
+#                                   #classProbs = TRUE,
+#                                   verboseIter = TRUE)
+# 
+# randomForestFit = train(x = rf.in[,2:23], 
+#                         y = rf.in$y, 
+#                         method = "rf", 
+#                         trControl = myTrainingControl) 
+#                         #preProcess = c("center","scale"))
+# 
+# pdf("ICI_projectR.TCGA.rf.SKCM.varImp.pdf")
+# plot(varImp(randomForestFit))
+# dev.off()
+# 
+# randomForestFit$finalModel
+# 
+# eval.rf <- evalm(randomForestFit)
+# 
+# ## get roc curve plotted in ggplot2
+# 
+# x$roc
 
 ## get AUC and other metrics
 
-x$stdres
+#x$stdres
 
 
 # # explore clustering and heatmap visualizations - this was unremarkable
