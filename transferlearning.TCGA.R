@@ -40,6 +40,9 @@ library(RTCGA.clinical)
 library(survival)
 library(MLeval)
 
+# source functions
+source("lmPlot.R")
+
 # set working directory
 setwd('/Users/michaelkessler/Dropbox/Workspace/POSTDOC/ImmunoOncology/projectR_ICI')
 
@@ -93,17 +96,23 @@ metaTCGA <- readRDS("TCGA_RDS/TCGA.legacy.meta.rds")
 #saveRDS(TL.proj, file = "TL.TCGA.rds")
 # read in if starting analysis from here and don't want to rerun steps above
 TL.proj <- readRDS("TL.TCGA.rds")
-
 ############################################################################
 # Process TL output and meta data
 #############################################################################
 #transpose TL.proj
 TL.proj <- as.data.frame(t(TL.proj))
+# filter out adjacent normal samples
 
 # add relevant meta data to TL.prov df that contains projected patterns
 mtch <- match(rownames(TL.proj), metaTCGA$barcode) # make sure dfs in same order
 metaTCGA <- metaTCGA[mtch,]
+# remove NAs if they exits
+if (sum(is.na(mtch)) > 0){
+  TL.proj <- TL.proj[-which(is.na(mtch)),]
+  metaTCGA <- metaTCGA[-which(is.na(mtch)),]
+}
 TL.proj$cancertype <- as.factor(metaTCGA$cancertype)
+TL.proj$definition <- as.factor(metaTCGA$definition)
 
 ## add survival measures from Liu et al 2018 https://www.sciencedirect.com/science/article/pii/S0092867418302290#app2
 survival_data <- read_excel("1-s2.0-S0092867418302290-mmc1.xlsx")
@@ -124,154 +133,75 @@ TL.proj$gender <- survival_data$gender[mtch]
 TL.proj$race <- survival_data$race[mtch]
 # add name
 TL.proj$name <- rownames(TL.proj)
+# center and scale the patterns
+TL.proj[1:21] <- scale(TL.proj[1:21], center = TRUE, scale = TRUE)
+
+# melt data
+# TL.proj.m <- reshape2::melt(TL.proj,
+#                             id.vars = c("OS.time", "DSS.time", "DFI.time", "PFI.time",
+#                                         "gender","race", "cancertype", "age", "name"),
+#                             na.rm = FALSE, value.name = "value")
 
 ############################################################################
 # Run Models And Graph Results
 #############################################################################
-# center and scale the patterns
-TL.proj[1:21] <- scale(TL.proj[1:21], center = TRUE, scale = TRUE)
-TL.proj$cancertype <- as.factor(TL.proj$cancertype)
-# melt the data
-# melt dataset
-TL.proj.m <- reshape2::melt(TL.proj,
-                            id.vars = c("OS.time", "DSS.time", "DFI.time", "PFI.time",
-                                        "gender","race", "cancertype", "age", "name"),
-                            na.rm = FALSE, value.name = "value")
+
+# subset samples to run models with only TCGA tumors called:
+# Primary solid Tumor, Recurrent Solid Tumor, Metastatic
+TL.proj.sub <- subset(TL.proj, definition == "Primary solid Tumor" |
+                        definition == "Recurrent Solid Tumor" |
+                        definition == "Metastatic")
 
 # run a linear model with y = survival,
 # x = cancer types + every CoGAPs pattern (No Age)
-lm.all <- lm(TL.proj$OS.time~TL.proj$cancertype+TL.proj$Pattern_1+
-                  TL.proj$Pattern_2+TL.proj$Pattern_3+TL.proj$Pattern_4+
-                  TL.proj$Pattern_5+TL.proj$Pattern_6+TL.proj$Pattern_7+
-                  TL.proj$Pattern_8+TL.proj$Pattern_9+TL.proj$Pattern_10+
-                  TL.proj$Pattern_11+TL.proj$Pattern_12+TL.proj$Pattern_13+
-                  TL.proj$Pattern_14+TL.proj$Pattern_15+TL.proj$Pattern_16+
-                  TL.proj$Pattern_17+TL.proj$Pattern_18+TL.proj$Pattern_19+
-                  TL.proj$Pattern_20+TL.proj$Pattern_21)
 
-# make a plot of normalized coefficients with CI
-# first get coefficnents and CIs
-lm.all.coef <- summary(lm.all)$coefficients
-xvals <- lm.all.coef[grep("Pattern", rownames(lm.all.coef)),1]
-CIlow <- xvals - (1.96*lm.all.coef[grep("Pattern", rownames(lm.all.coef)),2])
-CIhigh <- xvals + (1.96*lm.all.coef[grep("Pattern", rownames(lm.all.coef)),2])
-pval <- lm.all.coef[grep("Pattern", rownames(lm.all.coef)),4]
-yvals <- gsub("TL.proj$", "", names(xvals), fixed = T)
-dat.df <- data.frame(yvals = factor(yvals, levels = yvals),
-                     xvals = xvals,
-                     CIlow = CIlow,
-                     CIhigh = CIhigh,
-                     pval = pval)
-# make plot using ggplot
-plotcols <- rep("black", nrow(dat.df))
-plotcols[dat.df$pval <= 0.05] <- "red"
-p <- ggplot(dat.df, aes(x = xvals, y = yvals, size = -log10(pval))) + 
-  geom_vline(aes(xintercept = 0), size = .25, linetype = "dashed") + 
-  geom_errorbarh(aes(xmax = CIhigh, xmin = CIlow), size = .5, height = 
-                   .2, color = "gray50") +
-  geom_point(color = plotcols) +
-  #coord_trans(x = scales:::exp_trans(10)) +
-  #scale_x_continuous(breaks = log10(seq(0.1, 2.5, 0.1)), labels = seq(0.1, 2.5, 0.1),
-            #         limits = log10(c(0.09,2.5))) +
-  theme_bw() +
-  theme(panel.grid.minor = element_blank()) +
-  ylab("") +
-  xlab("Standardized Coefficient")
-  #annotate(geom = "text", y =1.1, x = log10(1.5), 
-           #label = "Model p < 0.001\nPseudo R^2 = 0.10", size = 3.5, hjust = 0) + 
-  #ggtitle("Feeding method and risk of obesity in cats")
+mod_cols <- c("cancertype","Pattern_1","Pattern_2","Pattern_3",
+              "Pattern_4","Pattern_5","Pattern_6","Pattern_7",
+              "Pattern_8","Pattern_9","Pattern_10","Pattern_11",
+              "Pattern_12","Pattern_13","Pattern_14","Pattern_15",
+              "Pattern_16","Pattern_17","Pattern_18","Pattern_19",
+              "Pattern_20","Pattern_21")
+                
+p <- lmPlot(TL.proj.sub,
+            o = "OS.time",
+            c = mod_cols,
+            v = TRUE,
+            p = "Pattern",
+            f = "TL.proj$")
 
-pdf("ICI_projectR.TCGA.lm.all.no_age.pdf")
+# save plot  
+pdf("ICI_projectR.TCGA.lm.all.no_age.pdf", height = 12, width = 6)
 p
 dev.off()
 
-## linear model WITH age
-lm.all <- lm(TL.proj$OS.time~TL.proj$cancertype+TL.proj$Pattern_1+
-               TL.proj$Pattern_2+TL.proj$Pattern_3+TL.proj$Pattern_4+
-               TL.proj$Pattern_5+TL.proj$Pattern_6+TL.proj$Pattern_7+
-               TL.proj$Pattern_8+TL.proj$Pattern_9+TL.proj$Pattern_10+
-               TL.proj$Pattern_11+TL.proj$Pattern_12+TL.proj$Pattern_13+
-               TL.proj$Pattern_14+TL.proj$Pattern_15+TL.proj$Pattern_16+
-               TL.proj$Pattern_17+TL.proj$Pattern_18+TL.proj$Pattern_19+
-               TL.proj$Pattern_20+TL.proj$Pattern_21+TL.proj$age)
+## now run a linear model WITH age as a covariate
+mod_cols <- c(mod_cols, "age")
+p <- lmPlot(TL.proj.sub,
+            o = "OS.time",
+            c = mod_cols,
+            v = TRUE,
+            p = "Pattern",
+            f = "TL.proj$")
 
-# make a plot of normalized coefficients with CI
-# first get coefficnents and CIs
-lm.all.coef <- summary(lm.all)$coefficients
-xvals <- lm.all.coef[grep("Pattern", rownames(lm.all.coef)),1]
-CIlow <- xvals - (1.96*lm.all.coef[grep("Pattern", rownames(lm.all.coef)),2])
-CIhigh <- xvals + (1.96*lm.all.coef[grep("Pattern", rownames(lm.all.coef)),2])
-pval <- lm.all.coef[grep("Pattern", rownames(lm.all.coef)),4]
-yvals <- gsub("TL.proj$", "", names(xvals), fixed = T)
-dat.df <- data.frame(yvals = factor(yvals, levels = yvals),
-                     xvals = xvals,
-                     CIlow = CIlow,
-                     CIhigh = CIhigh,
-                     pval = pval)
-# make plot using ggplot
-plotcols <- rep("black", nrow(dat.df))
-plotcols[dat.df$pval <= 0.05] <- "red"
-p <- ggplot(dat.df, aes(x = xvals, y = yvals, size = -log10(pval))) + 
-  geom_vline(aes(xintercept = 0), size = .25, linetype = "dashed") + 
-  geom_errorbarh(aes(xmax = CIhigh, xmin = CIlow), size = .5, height = 
-                   .2, color = "gray50") +
-  geom_point(color = plotcols) +
-  #coord_trans(x = scales:::exp_trans(10)) +
-  #scale_x_continuous(breaks = log10(seq(0.1, 2.5, 0.1)), labels = seq(0.1, 2.5, 0.1),
-  #         limits = log10(c(0.09,2.5))) +
-  theme_bw() +
-  theme(panel.grid.minor = element_blank()) +
-  ylab("") +
-  xlab("Standardized Coefficient")
-
-pdf("ICI_projectR.TCGA.lm.all.age.pdf")
+# save plot
+pdf("ICI_projectR.TCGA.lm.all.age.pdf", height = 12, width = 6)
 p
 dev.off()
 
-# association between patterns and age
-lm.all <- lm(TL.proj$age~TL.proj$cancertype+TL.proj$Pattern_1+
-               TL.proj$Pattern_2+TL.proj$Pattern_3+TL.proj$Pattern_4+
-               TL.proj$Pattern_5+TL.proj$Pattern_6+TL.proj$Pattern_7+
-               TL.proj$Pattern_8+TL.proj$Pattern_9+TL.proj$Pattern_10+
-               TL.proj$Pattern_11+TL.proj$Pattern_12+TL.proj$Pattern_13+
-               TL.proj$Pattern_14+TL.proj$Pattern_15+TL.proj$Pattern_16+
-               TL.proj$Pattern_17+TL.proj$Pattern_18+TL.proj$Pattern_19+
-               TL.proj$Pattern_20+TL.proj$Pattern_21)
-
-# make a plot of normalized coefficients with CI
-# first get coefficnents and CIs
-lm.all.coef <- summary(lm.all)$coefficients
-xvals <- lm.all.coef[grep("Pattern", rownames(lm.all.coef)),1]
-CIlow <- xvals - (1.96*lm.all.coef[grep("Pattern", rownames(lm.all.coef)),2])
-CIhigh <- xvals + (1.96*lm.all.coef[grep("Pattern", rownames(lm.all.coef)),2])
-pval <- lm.all.coef[grep("Pattern", rownames(lm.all.coef)),4]
-yvals <- gsub("TL.proj$", "", names(xvals), fixed = T)
-dat.df <- data.frame(yvals = factor(yvals, levels = yvals),
-                     xvals = xvals,
-                     CIlow = CIlow,
-                     CIhigh = CIhigh,
-                     pval = pval)
-# make plot using ggplot
-plotcols <- rep("black", nrow(dat.df))
-plotcols[dat.df$pval <= 0.05] <- "red"
-p <- ggplot(dat.df, aes(x = xvals, y = yvals, size = -log10(pval))) + 
-  geom_vline(aes(xintercept = 0), size = .25, linetype = "dashed") + 
-  geom_errorbarh(aes(xmax = CIhigh, xmin = CIlow), size = .5, height = 
-                   .2, color = "gray50") +
-  geom_point(color = plotcols) +
-  #coord_trans(x = scales:::exp_trans(10)) +
-  #scale_x_continuous(breaks = log10(seq(0.1, 2.5, 0.1)), labels = seq(0.1, 2.5, 0.1),
-  #         limits = log10(c(0.09,2.5))) +
-  theme_bw() +
-  theme(panel.grid.minor = element_blank()) +
-  ylab("") +
-  xlab("Standardized Coefficient")
+# test association between patterns and age
+mod_cols <- mod_cols[-length(mod_cols)]
+p <- lmPlot(TL.proj.sub,
+            o = "age",
+            c = mod_cols,
+            v = TRUE,
+            p = "Pattern",
+            f = "TL.proj$")
 
 pdf("ICI_projectR.TCGA.lm.age_vs_patterns.pdf")
 p
 dev.off()
 
-# run linear models per cancer type
+# run linear models per cancer type and plot pattern 7 across cancer types
 ct.names <- c()
 ct.out <- c()
 for (ct in levels(TL.proj$cancertype)){
@@ -320,72 +250,140 @@ pdf("ICI_projectR.TCGA.P7_all.pdf", height = 14, width = 7)
 p
 dev.off()
 
+# plot pattern 7 across cancer definition types
+TL.proj.sub$definition <- factor(TL.proj.sub$definition, levels = unique(as.character(TL.proj.sub$definition)))
+# Compare pattern 7 acrosscancer definition types
+pdf("ICI_projectR.TCGA.P7.definition.boxplots.pdf")
+ggplot(TL.proj.sub,
+       aes(x = definition, y = Pattern_7))+
+  geom_boxplot() + 
+  theme_classic()
+dev.off()
+
 # explore patterns within SKCM in great depth
-TL.proj.SKCM <- subset(TL.proj, cancertype == "TCGA-SKCM")
-lm.SKCM <- lm(TL.proj.SKCM$OS.time~TL.proj.SKCM$Pattern_1+
-                    TL.proj.SKCM$Pattern_2+TL.proj.SKCM$Pattern_3+TL.proj.SKCM$Pattern_4+
-                    TL.proj.SKCM$Pattern_5+TL.proj.SKCM$Pattern_6+TL.proj.SKCM$Pattern_7+
-                    TL.proj.SKCM$Pattern_8+TL.proj.SKCM$Pattern_9+TL.proj.SKCM$Pattern_10+
-                    TL.proj.SKCM$Pattern_11+TL.proj.SKCM$Pattern_12+TL.proj.SKCM$Pattern_13+
-                    TL.proj.SKCM$Pattern_14+TL.proj.SKCM$Pattern_15+TL.proj.SKCM$Pattern_16+
-                    TL.proj.SKCM$Pattern_17+TL.proj.SKCM$Pattern_18+TL.proj.SKCM$Pattern_19+
-                    TL.proj.SKCM$Pattern_20+TL.proj.SKCM$Pattern_21+TL.proj.SKCM$age)
+TL.proj.SKCM <- subset(TL.proj.sub, cancertype == "TCGA-SKCM")
 
-# plot coefficients from SKCM model
-# first get coefficnents and CIs
-lm.SKCM.coef <- summary(lm.SKCM)$coefficients
-xvals <- lm.SKCM.coef[grep("Pattern", rownames(lm.SKCM.coef)),1]
-CIlow <- xvals - (1.96*lm.SKCM.coef[grep("Pattern", rownames(lm.SKCM.coef)),2])
-CIhigh <- xvals + (1.96*lm.SKCM.coef[grep("Pattern", rownames(lm.SKCM.coef)),2])
-pval <- lm.SKCM.coef[grep("Pattern", rownames(lm.SKCM.coef)),4]
-yvals <- gsub("TL.proj.SKCM$", "", names(xvals), fixed = T)
-yvals_order <- yvals
-dat.df <- data.frame(yvals = factor(yvals, levels = yvals_order),
-                     xvals = xvals,
-                     CIlow = CIlow,
-                     CIhigh = CIhigh,
-                     pval = pval)
+# first, plot pattern 7 by definition for only KSCM
+pdf("ICI_projectR.TCGA.SKCM.P7.definition.boxplots.pdf")
+ggplot(TL.proj.SKCM,
+       aes(x = definition, y = Pattern_7))+
+  geom_boxplot() + 
+  theme_classic()
+dev.off()
 
-# make plot using ggplot
-plotcols <- rep("black", nrow(dat.df))
-plotcols[dat.df$pval <= 0.05] <- "red"
-p <- ggplot(dat.df, aes(x = xvals, y = yvals, size = -log10(pval))) + 
-  geom_vline(aes(xintercept = 0), size = .25, linetype = "dashed") + 
-  geom_errorbarh(aes(xmax = CIhigh, xmin = CIlow), size = .5, height = 
-                   .2, color = "gray50") +
-  geom_point(color = plotcols) +
-  #coord_trans(x = scales:::exp_trans(10)) +
-  #scale_x_continuous(breaks = log10(seq(0.1, 2.5, 0.1)), labels = seq(0.1, 2.5, 0.1),
-  #         limits = log10(c(0.09,2.5))) +
-  theme_bw() +
-  theme(panel.grid.minor = element_blank()) +
-  ylab("") +
-  xlab("Standardized Coefficient")
+# now lm model for only SKCM
+mod_cols <- c("Pattern_1","Pattern_2","Pattern_3",
+              "Pattern_4","Pattern_5","Pattern_6","Pattern_7",
+              "Pattern_8","Pattern_9","Pattern_10","Pattern_11",
+              "Pattern_12","Pattern_13","Pattern_14","Pattern_15",
+              "Pattern_16","Pattern_17","Pattern_18","Pattern_19",
+              "Pattern_20","Pattern_21", "age")
+
+p <- lmPlot(TL.proj.SKCM,
+            o = "OS.time",
+            c = mod_cols,
+            v = TRUE,
+            p = "Pattern",
+            f = "TL.proj$")
 
 # save at size height = 15, width = 5
-pdf("ICI_projectR.TCGA.lm.SKCM.h15.w5.pdf", height = 15, width = 5)
+pdf("ICI_projectR.TCGA.lm.SKCM.pdf", height = 15, width = 5)
 p
 dev.off()
-# save at size height = 15, width = 10
-pdf("ICI_projectR.TCGA.lm.SKCM.h15.w10.pdf", height = 15, width = 10)
+
+# repeat this with metastatic vs non-metastatic samples
+TL.proj.SKCM.nonmet <- subset(TL.proj.SKCM, definition != "Metastatic")
+TL.proj.SKCM.met <- subset(TL.proj.SKCM, definition == "Metastatic")
+# first for nonmets
+p <- lmPlot(TL.proj.SKCM.nonmet,
+            o = "OS.time",
+            c = mod_cols,
+            v = TRUE,
+            p = "Pattern",
+            f = "TL.proj$")
+# save at size height = 15, width = 5
+pdf("ICI_projectR.TCGA.lm.SKCM.nonmet.pdf", height = 15, width = 5)
 p
 dev.off()
-# save at size height = 15, width = 8
-pdf("ICI_projectR.TCGA.lm.SKCM.h15.w8.pdf", height = 15, width = 8)
+# now for mets
+p <- lmPlot(TL.proj.SKCM.met,
+            o = "OS.time",
+            c = mod_cols,
+            v = TRUE,
+            p = "Pattern",
+            f = "TL.proj$")
+# save at size height = 15, width = 5
+pdf("ICI_projectR.TCGA.lm.SKCM.mets.pdf", height = 15, width = 5)
 p
 dev.off()
-# save at size height = 12, width = 8
-pdf("ICI_projectR.TCGA.lm.SKCM.h12.w8.pdf", height = 12, width = 8)
-p
+
+# As an alternative way of visualizing mets vs nonmets
+# make a plot of the delta of coefficients
+lm.met <- lm(TL.proj.SKCM.met$OS.time~TL.proj.SKCM.met$Pattern_1+
+              TL.proj.SKCM.met$Pattern_2+TL.proj.SKCM.met$Pattern_3+
+              TL.proj.SKCM.met$Pattern_4+TL.proj.SKCM.met$Pattern_5+
+              TL.proj.SKCM.met$Pattern_6+TL.proj.SKCM.met$Pattern_7+
+              TL.proj.SKCM.met$Pattern_8+TL.proj.SKCM.met$Pattern_9+
+              TL.proj.SKCM.met$Pattern_10+TL.proj.SKCM.met$Pattern_11+
+              TL.proj.SKCM.met$Pattern_12+TL.proj.SKCM.met$Pattern_13+
+              TL.proj.SKCM.met$Pattern_14+TL.proj.SKCM.met$Pattern_15+
+              TL.proj.SKCM.met$Pattern_16+TL.proj.SKCM.met$Pattern_17+
+              TL.proj.SKCM.met$Pattern_18+TL.proj.SKCM.met$Pattern_19+
+              TL.proj.SKCM.met$Pattern_20+TL.proj.SKCM.met$Pattern_21+
+              TL.proj.SKCM.met$age)
+coefs.met <- summary(lm.met)$coefficients
+xvals.met <- coefs.met[grep("Pattern", rownames(coefs.met)),1]
+CIlow.met <- xvals.met - (1.96*coefs.met[grep("Pattern", rownames(coefs.met)),2])
+CIhigh.met <- xvals.met + (1.96*coefs.met[grep("Pattern", rownames(coefs.met)),2])
+# nonmet
+lm.nonmet <- lm(TL.proj.SKCM.nonmet$OS.time~TL.proj.SKCM.nonmet$Pattern_1+
+               TL.proj.SKCM.nonmet$Pattern_2+TL.proj.SKCM.nonmet$Pattern_3+
+               TL.proj.SKCM.nonmet$Pattern_4+TL.proj.SKCM.nonmet$Pattern_5+
+               TL.proj.SKCM.nonmet$Pattern_6+TL.proj.SKCM.nonmet$Pattern_7+
+               TL.proj.SKCM.nonmet$Pattern_8+TL.proj.SKCM.nonmet$Pattern_9+
+               TL.proj.SKCM.nonmet$Pattern_10+TL.proj.SKCM.nonmet$Pattern_11+
+               TL.proj.SKCM.nonmet$Pattern_12+TL.proj.SKCM.nonmet$Pattern_13+
+               TL.proj.SKCM.nonmet$Pattern_14+TL.proj.SKCM.nonmet$Pattern_15+
+               TL.proj.SKCM.nonmet$Pattern_16+TL.proj.SKCM.nonmet$Pattern_17+
+               TL.proj.SKCM.nonmet$Pattern_18+TL.proj.SKCM.nonmet$Pattern_19+
+               TL.proj.SKCM.nonmet$Pattern_20+TL.proj.SKCM.nonmet$Pattern_21+
+               TL.proj.SKCM.nonmet$age)
+
+coefs.nonmet <- summary(lm.nonmet)$coefficients
+xvals.nonmet <- coefs.nonmet[grep("Pattern", rownames(coefs.nonmet)),1]
+CIlow.nonmet <- xvals.nonmet - (1.96*coefs.nonmet[grep("Pattern", rownames(coefs.nonmet)),2])
+CIhigh.nonmet <- xvals.nonmet + (1.96*coefs.nonmet[grep("Pattern", rownames(coefs.nonmet)),2])
+xvals.delta <- xvals.met - xvals.nonmet
+# combine confidence intervals
+range.delta <- sqrt((CIhigh.met - CIlow.met)**2 + (CIhigh.nonmet - CIlow.nonmet)**2)
+CIlow.delta <- xvals.delta - range.delta/2
+CIhigh.delta <- xvals.delta + range.delta/2
+plt.df.metdelta <- data.frame(xvals = xvals.delta, 
+                              CIlow = CIlow.delta,
+                              CIhigh = CIhigh.delta,
+                              yvals = gsub("TL.proj.SKCM.met$", "",
+                                  names(xvals.delta), fixed = T))
+
+# plot
+
+# p <- ggplot(plt.df.metdelta,
+  #       aes(y = xvals)) + 
+  # geom_vline(aes(xintercept = 0), size = .25, linetype = "dashed") +
+  # geom_errorbarh(aes(xmax = CIhigh, xmin = CIlow), size = .5, height =
+  #                  .2, color = "gray50") +
+  # geom_point(col="black") +
+  # geom_bar() +
+  # theme_bw() +
+  # #theme(panel.grid.minor = element_blank()) +
+  # ylab("") +
+  # xlab("Delta Standardized Coefficients")
+
+# save at size height = 15, width = 5
+pdf("ICI_projectR.TCGA.lm.SKCM.deltamets.pdf", height = 15, width = 5)
+barplot(plt.df.metdelta$xvals)
 dev.off()
-# save at size height = 15, width = 6
-pdf("ICI_projectR.TCGA.lm.SKCM.h15.w6.pdf", height = 15, width = 6)
-p
-dev.off()
-# save at size height = 12, width = 6
-pdf("ICI_projectR.TCGA.lm.SKCM.h12.w6.pdf", height = 12, width = 6)
-p
-dev.off()
+
+### B7 ###
 
 # Correlation betwen B7 and patterns in all cancers and SKCM specifically
 expTCGA.t <- t(expTCGA)
@@ -396,16 +394,16 @@ TL.proj.B7 <- cbind(TL.proj, expTCGA.t.B7[mtch,])
 # all TCGA samples and B7.1
 patterns.B7.1.all <- apply(TL.proj.B7[,c(1:21)], 2,
               function(a){
-                res <- cor.test(a, TL.proj.B7[,32])
+                res <- cor.test(a, TL.proj.B7[,33])
                 return(c(res$estimate, res$conf.int, res$p.value))})
 patterns.B7.1.df <- as.data.frame(t(patterns.B7.1.all))
 colnames(patterns.B7.1.df) <- c("Estimate","CIlow",
                                  "CIhigh", "pval")
-patterns.B7.1.df$pattern <- rownames(patterns.B7.1.df)
+patterns.B7.1.df$pattern <- factor(rownames(patterns.B7.1.df), levels=rownames(patterns.B7.1.df))
 patterns.B7.1.df$plotcol <- "black"
 patterns.B7.1.df$plotcol[patterns.B7.1.df$pval <= 0.05] <- "red"
 # write data to outfile
-write.csv(patterns.B7.1.df, file = "patterns.B7.1.csv",
+write.csv(patterns.B7.1.df, file = "ICI_projectR.B7.1.csv",
           quote = F, row.names = F)
 # plot
 # make plot using ggplot
@@ -423,7 +421,7 @@ p <- ggplot(patterns.B7.1.df, aes(x = Estimate, y = pattern,
   ylab("") +
   xlab("Pearson Correlation Coefficient")
 
-pdf("patterns.B7.1.Pearson.pdf", height = 12, width = 6)
+pdf("ICI_projectR.B7.1.Pearson.pdf", height = 9, width = 6)
 p
 dev.off()
 
@@ -431,7 +429,7 @@ dev.off()
 
 patterns.B7.2.all <- apply(TL.proj.B7[,c(1:21)], 2,
                            function(a){
-                             res <- cor.test(a, TL.proj.B7[,33])
+                             res <- cor.test(a, TL.proj.B7[,34])
                              return(c(res$estimate, res$conf.int, res$p.value))})
 patterns.B7.2.df <- as.data.frame(t(patterns.B7.2.all))
 colnames(patterns.B7.2.df) <- c("Estimate","CIlow",
@@ -439,12 +437,12 @@ colnames(patterns.B7.2.df) <- c("Estimate","CIlow",
 # if pval is zero, set to min for graphing
 patterns.B7.2.df$pval[patterns.B7.2.df$pval == 0] <- min(patterns.B7.2.df$pval[patterns.B7.2.df$pval != 0])
 
-patterns.B7.2.df$pattern <- rownames(patterns.B7.2.df)
+patterns.B7.2.df$pattern <- factor(rownames(patterns.B7.2.df), levels=rownames(patterns.B7.2.df))
 patterns.B7.2.df$plotcol <- "black"
 patterns.B7.2.df$plotcol[patterns.B7.2.df$pval <= 0.05] <- "red"
 #View(patterns.B7.2.df)
 # write data to outfile
-write.csv(patterns.B7.2.df, file = "patterns.B7.2.csv",
+write.csv(patterns.B7.2.df, file = "ICI_projectR.B7.2.csv",
           quote = F, row.names = F)
 # plot
 # make plot using ggplot
@@ -462,26 +460,26 @@ p <- ggplot(patterns.B7.2.df, aes(x = Estimate, y = pattern,
   ylab("") +
   xlab("Pearson Correlation Coefficient")
 
-pdf("patterns.B7.2.Pearson.pdf", height = 12, width = 6)
+pdf("ICI_projectR.B7.2.Pearson.pdf", height = 9, width = 6)
 p
 dev.off()
 
 # now repeat but just with SKCM
 TL.proj.B7.SKCM <- TL.proj.B7[TL.proj.B7$cancertype == "TCGA-SKCM",]
 
-# all TCGA samples and B7.1
+# SKCM TCGA samples and B7.1
 patterns.B7.1.SKCM <- apply(TL.proj.B7.SKCM[,c(1:21)], 2,
                            function(a){
-                             res <- cor.test(a, TL.proj.B7.SKCM[,32])
+                             res <- cor.test(a, TL.proj.B7.SKCM[,33])
                              return(c(res$estimate, res$conf.int, res$p.value))})
 patterns.B7.1.SKCM.df <- as.data.frame(t(patterns.B7.1.SKCM))
 colnames(patterns.B7.1.SKCM.df) <- c("Estimate","CIlow",
                                 "CIhigh", "pval")
-patterns.B7.1.SKCM.df$pattern <- rownames(patterns.B7.1.SKCM.df)
+patterns.B7.1.SKCM.df$pattern <- factor(rownames(patterns.B7.1.SKCM.df), levels=rownames(patterns.B7.1.SKCM.df))
 patterns.B7.1.SKCM.df$plotcol <- "black"
 patterns.B7.1.SKCM.df$plotcol[patterns.B7.1.SKCM.df$pval <= 0.05] <- "red"
 # write data to outfile
-write.csv(patterns.B7.1.SKCM.df, file = "patterns.B7.1.SKCM.csv",
+write.csv(patterns.B7.1.SKCM.df, file = "ICI_projectR.B7.1.SKCM.csv",
           quote = F, row.names = F)
 # plot
 # make plot using ggplot
@@ -499,15 +497,15 @@ p <- ggplot(patterns.B7.1.SKCM.df, aes(x = Estimate, y = pattern,
   ylab("") +
   xlab("Pearson Correlation Coefficient")
 
-pdf("patterns.B7.1.SKCM.Pearson.pdf", height = 12, width = 6)
+pdf("ICI_projectR.B7.1.SKCM.Pearson.pdf", height = 9, width = 6)
 p
 dev.off()
 
-# all TCGA samples and B7.2
+# SKCM TCGA samples and B7.2
 
 patterns.B7.2.SKCM <- apply(TL.proj.B7.SKCM[,c(1:21)], 2,
                            function(a){
-                             res <- cor.test(a, TL.proj.B7.SKCM[,33])
+                             res <- cor.test(a, TL.proj.B7.SKCM[,34])
                              return(c(res$estimate, res$conf.int, res$p.value))})
 patterns.B7.2.SKCM.df <- as.data.frame(t(patterns.B7.2.SKCM))
 colnames(patterns.B7.2.SKCM.df) <- c("Estimate","CIlow",
@@ -515,12 +513,12 @@ colnames(patterns.B7.2.SKCM.df) <- c("Estimate","CIlow",
 # if pval is zero, set to min for graphing
 patterns.B7.2.SKCM.df$pval[patterns.B7.2.SKCM.df$pval == 0] <- min(patterns.B7.2.SKCM.df$pval[patterns.B7.2.SKCM.df$pval != 0])
 
-patterns.B7.2.SKCM.df$pattern <- rownames(patterns.B7.2.SKCM.df)
+patterns.B7.2.SKCM.df$pattern <- factor(rownames(patterns.B7.2.SKCM.df), levels=rownames(patterns.B7.2.SKCM.df))
 patterns.B7.2.SKCM.df$plotcol <- "black"
 patterns.B7.2.SKCM.df$plotcol[patterns.B7.2.SKCM.df$pval <= 0.05] <- "red"
 #View(patterns.B7.2.df)
 # write data to outfile
-write.csv(patterns.B7.2.SKCM.df, file = "patterns.B7.2.SKCM.csv",
+write.csv(patterns.B7.2.SKCM.df, file = "ICI_projectR.B7.2.SKCM.csv",
           quote = F, row.names = F)
 # plot
 # make plot using ggplot
@@ -538,28 +536,47 @@ p <- ggplot(patterns.B7.2.SKCM.df, aes(x = Estimate, y = pattern,
   ylab("") +
   xlab("Pearson Correlation Coefficient")
 
-pdf("patterns.B7.2.SKCM.Pearson.pdf", height = 12, width = 6)
+pdf("ICI_projectR.B7.2.SKCM.Pearson.pdf", height = 9, width = 6)
 p
 dev.off()
 
-# comment out barplots
-# pdf("patterns.B7.1.all.pdf")
-# barplot(patterns.B7.1.all[,1], las = 2,
-#         main = "patterns.B7.1.all", ylab = "Pearson Correlation")
-# dev.off()
-# 
-# pdf("patterns.B7.2.all.pdf")
-# barplot(patterns.B7.2.all[,1], las = 2,
-#         main = "patterns.B7.2.all", ylab = "Pearson Correlation")
-# dev.off()
-# 
-# pdf("patterns.B7.1.SKCM.pdf")
-# barplot(patterns.B7.1.SKCM[,1], las = 2,
-#         main = "patterns.B7.1.SKCM", ylab = "Pearson Correlation")
-# dev.off()
-# 
-# pdf("patterns.B7.2.SKCM.pdf")
-# barplot(patterns.B7.2.SKCM[,1], las = 2,
-#         main = "patterns.B7.2.SKCM", ylab = "Pearson Correlation")
-# dev.off()
+# barplots
+pdf("ICI_projectR.B7.1.all.pdf")
+barplot(t(patterns.B7.1.all)[,1], las = 2,
+        main = "patterns.B7.1.all", ylab = "Pearson Correlation")
+dev.off()
 
+pdf("ICI_projectR.B7.2.all.pdf")
+barplot(t(patterns.B7.2.all)[,1], las = 2,
+        main = "patterns.B7.2.all", ylab = "Pearson Correlation")
+dev.off()
+
+pdf("ICI_projectR.B7.1.SKCM.pdf")
+barplot(t(patterns.B7.1.SKCM)[,1], las = 2,
+        main = "patterns.B7.1.SKCM", ylab = "Pearson Correlation")
+dev.off()
+
+pdf("ICI_projectR.B7.2.SKCM.pdf")
+barplot(t(patterns.B7.2.SKCM)[,1], las = 2,
+        main = "patterns.B7.2.SKCM", ylab = "Pearson Correlation")
+dev.off()
+
+# Kaplan Myers curves
+Pat <- TL.proj.SKCM$Pattern_7
+OS <- TL.proj.SKCM$OS.time
+group <- rep(NA, length(OS))
+event <- rep(1, length(OS))
+TL.proj.km <- data.frame(OS = OS, event = event, group = group)
+cutoffs <- quantile(Pat, probs = c(0.95, 0.95))
+# stratify based on pattern 7
+TL.proj.km$group[Pat <= cutoffs[1]] <- "Bottom95%"
+TL.proj.km$group[Pat >= cutoffs[2]] <- "Top5%"
+TL.proj.km <- TL.proj.km[!is.na(TL.proj.km$group),]
+TL.proj.km$group <- as.factor(TL.proj.km$group)
+# calc survival model fit
+KMfit <- survfit(Surv(OS, event) ~ group,
+                data = TL.proj.km)
+# plot with survminer
+pdf("ICI_projectR.TCGA.SKCM.KMplot.pdf")
+ggsurvplot(KMfit, data = TL.proj.km, risk.table = TRUE, pval = T)
+dev.off()
