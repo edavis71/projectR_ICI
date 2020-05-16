@@ -197,7 +197,7 @@ p <- lmPlot(TL.proj.sub,
             p = "Pattern",
             f = "TL.proj$")
 
-pdf("ICI_projectR.TCGA.lm.age_vs_patterns.pdf")
+pdf("ICI_projectR.TCGA.lm.age_vs_patterns.pdf", height = 12, width = 6)
 p
 dev.off()
 
@@ -287,7 +287,7 @@ p <- lmPlot(TL.proj.SKCM,
             f = "TL.proj$")
 
 # save at size height = 15, width = 5
-pdf("ICI_projectR.TCGA.lm.SKCM.pdf", height = 15, width = 5)
+pdf("ICI_projectR.TCGA.lm.SKCM.pdf", height = 12, width = 6)
 p
 dev.off()
 
@@ -302,7 +302,7 @@ p <- lmPlot(TL.proj.SKCM.nonmet,
             p = "Pattern",
             f = "TL.proj$")
 # save at size height = 15, width = 5
-pdf("ICI_projectR.TCGA.lm.SKCM.nonmet.pdf", height = 15, width = 5)
+pdf("ICI_projectR.TCGA.lm.SKCM.nonmet.pdf", height = 12, width = 6)
 p
 dev.off()
 # now for mets
@@ -313,7 +313,7 @@ p <- lmPlot(TL.proj.SKCM.met,
             p = "Pattern",
             f = "TL.proj$")
 # save at size height = 15, width = 5
-pdf("ICI_projectR.TCGA.lm.SKCM.mets.pdf", height = 15, width = 5)
+pdf("ICI_projectR.TCGA.lm.SKCM.mets.pdf", height = 12, width = 6)
 p
 dev.off()
 
@@ -562,8 +562,9 @@ barplot(t(patterns.B7.2.SKCM)[,1], las = 2,
 dev.off()
 
 # Kaplan Myers curves
-Pat <- TL.proj.SKCM$Pattern_7
-OS <- TL.proj.SKCM$OS.time
+TL.proj.SKCM.KM <- subset(TL.proj.SKCM, definition == "Metastatic")
+Pat <- TL.proj.SKCM.KM$Pattern_7
+OS <- TL.proj.SKCM.KM$OS.time
 group <- rep(NA, length(OS))
 event <- rep(1, length(OS))
 TL.proj.km <- data.frame(OS = OS, event = event, group = group)
@@ -578,5 +579,6 @@ KMfit <- survfit(Surv(OS, event) ~ group,
                 data = TL.proj.km)
 # plot with survminer
 pdf("ICI_projectR.TCGA.SKCM.KMplot.pdf")
-ggsurvplot(KMfit, data = TL.proj.km, risk.table = TRUE, pval = T)
+ggsurvplot(KMfit, data = TL.proj.km, risk.table = TRUE, pval = T,
+           palette = c("blue", "red"))
 dev.off()
