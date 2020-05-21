@@ -1,4 +1,11 @@
 ###################################################
+# Transfer learning analysis to project CoGAPs 
+# patterns from a scRNA-seq mouse ICI dataset 
+# to human scRNA-seq datasets of melanoma metastases
+# Author: Emily Davis-Marcisak
+###################################################
+
+###################################################
 ### init
 ###################################################
 library(projectR)
