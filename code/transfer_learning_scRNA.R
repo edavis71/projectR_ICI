@@ -1,11 +1,4 @@
 ###################################################
-# Transfer learning analysis to project CoGAPs 
-# patterns from a scRNA-seq mouse ICI dataset 
-# to human scRNA-seq datasets of melanoma metastases
-# Author: Emily Davis-Marcisak
-###################################################
-
-###################################################
 ### init
 ###################################################
 library(projectR)
@@ -70,29 +63,29 @@ dim(sfmeta)
 ## check end
 sfmeta[16306:16343,]
 ## cut out extra rows at end
-tmp2 <- sfmeta[c(1:16306),]
+pdat_sf <- sfmeta[c(1:16306),]
 ## cut out extra cols at end
-tmp2 <- tmp2[,-c(12:35)]
+pdat_sf <- pdat_sf[,-c(12:35)]
 ## cut first 13 rows
-tmp2 <- tmp2[-c(1:15),]
+pdat_sf <- pdat_sf[-c(1:15),]
 ## check
-tmp2[1:5,1:5]
+pdat_sf[1:5,1:5]
 
-colnames(tmp2) <- c("Sample name", "title", "source name", "organism", "patient ID (Pre=baseline; Post= on treatment)", 
+colnames(pdat_sf) <- c("Sample name", "title", "source name", "organism", "patient ID (Pre=baseline; Post= on treatment)", 
                     "response", "therapy")
-head(tmp2)
+head(pdat_sf)
 ## remove remaining empty cols
-tmp2 <- tmp2[,-c(8:14)]
+pdat_sf <- pdat_sf[,-c(8:14)]
 ## set df colnames to barcode names
-colnames(df) <- tmp2$title
+colnames(df) <- pdat_sf$title
 
 ## split and combine meta information for grouping
-split <- strsplit(as.character(tmp2[,5]),split='_', fixed=TRUE)
+split <- strsplit(as.character(pdat_sf[,5]),split='_', fixed=TRUE)
 p1 <- sapply(split, "[", 1)
 p2 <- sapply(split, "[", 2)
-tmp2$patient <- p2
-tmp2$status <- p1
-tmp2$combined <- paste(tmp2$status, tmp2$therapy, tmp2$response, sep = " ")
+pdat_sf$patient <- p2
+pdat_sf$status <- p1
+pdat_sf$combined <- paste(pdat_sf$status, pdat_sf$therapy, pdat_sf$response, sep = " ")
 
 ## convert to numeric matrix
 readmat <- data.matrix(df)
@@ -100,7 +93,7 @@ readmat <- data.matrix(df)
 symbols <- toupper(rownames(df))
 
 ## summary table of treatments
-table(tmp2$combined)
+table(pdat_sf$combined)
 
 ###################################################
 ### transfer learning: sade-feldman
@@ -115,10 +108,131 @@ gaps2sf <- projectR(data = readmat,
 sf_proj <- gaps2sf[["projection"]]
 
 ## add back in sample or treatment names
-colnames(sf_proj) <- tmp2$combined
-tmp2 <- droplevels(tmp2)
+colnames(sf_proj) <- pdat_sf$combined
+pdat_sf <- droplevels(pdat_sf)
 
 saveRDS(sf_proj, file = "sf_projection.rds")
+
+###################################################
+### plotting transfer learning: sade-feldman 
+### all cells
+###################################################
+
+## add pattern 7 weight to meta data
+pdat_sf$p7 <- sf_proj[7,]
+
+sf_pre <- pdat_sf[pdat_sf$status == "Pre",]
+## pattern 7 weight across all cells
+ggplot(sf_pre, aes(x=combined, y=p7, color= combined, fill = combined)) +
+  geom_boxplot(outlier.shape = NA) + theme_bw() +
+  theme(axis.text.x=element_text(size=rel(0.75), angle=45, hjust = 1),
+        axis.ticks.x=element_blank()) +
+  scale_colour_manual(values = c("Pre anti-CTLA4 Responder" = "black", 
+                                 "Pre anti-CTLA4 Non-responder" = "#21908CFF",
+                                 "Pre anti-PD1 Non-responder" = "#D95F02", 
+                                 "Pre anti-PD1 Responder" = "black",
+                                 "Pre anti-CTLA4+PD1 Responder" =  "black",
+                                 "Pre anti-CTLA4+PD1 Non-responder" = "#7570B3")) +
+  scale_fill_manual(values = c("Pre anti-CTLA4 Responder" = "#21908CFF", 
+                               "Pre anti-CTLA4 Non-responder" = "white",
+                               "Pre anti-PD1 Non-responder" = "white", 
+                               "Pre anti-PD1 Responder" = "#D95F02",
+                               "Pre anti-CTLA4+PD1 Responder" =  "#7570B3",
+                               "Pre anti-CTLA4+PD1 Non-responder" = "white")) + 
+  geom_point(aes(color =combined), size = 1.5, shape = 21, position = position_jitterdodge()) + 
+  theme(panel.spacing.x=unit(0.15, "lines"),panel.spacing.y=unit(1, "lines")) +
+  ylab("pattern weight") + xlab("treatment") + 
+  facet_wrap(~therapy, scales = "free_x") + coord_cartesian(ylim = c(0, 2.5))
+
+sf_post <- pdat_sf[pdat_sf$status == "Post",]
+ggplot(sf_post, aes(x=combined, y=p7, color= combined, fill = combined)) +
+  geom_boxplot(outlier.shape = NA) + theme_bw() +
+  theme(axis.text.x=element_text(size=rel(0.75), angle=45, hjust = 1),
+        axis.ticks.x=element_blank()) +
+  scale_colour_manual(values = c("Post anti-PD1 Non-responder" = "#D95F02", 
+                                 "Post anti-PD1 Responder" = "black",
+                                 "Post anti-CTLA4+PD1 Responder" =  "black",
+                                 "Post anti-CTLA4+PD1 Non-responder" = "#7570B3")) +
+  scale_fill_manual(values = c("Post anti-PD1 Non-responder" = "white", 
+                               "Post anti-PD1 Responder" = "#D95F02",
+                               "Post anti-CTLA4+PD1 Responder" =  "#7570B3",
+                               "Post anti-CTLA4+PD1 Non-responder" = "white")) + 
+  geom_point(aes(color =combined), size = 1.5, shape = 21, position = position_jitterdodge()) + 
+  ylab("pattern weight") + xlab("treatment") +
+  theme(panel.spacing.x=unit(0.15, "lines"),panel.spacing.y=unit(1, "lines")) +
+  facet_wrap(~therapy, scales = "free_x") + coord_cartesian(ylim = c(0, 2.5))
+
+###################################################
+### plotting transfer learning: sade-feldman 
+### NK cells
+###################################################
+
+t_mat <- as.matrix(t(readmat))
+nk_gate <- c("NKG7", "FCGR3A", "NCR1", "CD3G", "CD3D", "CD4")
+nk_mat <- t_mat[,colnames(t_mat) %in% nk_gate]
+df <- as.data.frame(nk_mat)
+df$nk <- ""
+df[(df$NKG7 > 0 | df$FCGR3A > 0 | df$NCR1 > 0) &
+   (df$CD3D == 0 & df$CD3G == 0 & df$CD4 == 0),]$nk <- "TRUE"
+
+pdat_sf <- cbind(pdat_sf, df)
+sf_nk <-  pdat_sf[pdat_sf$nk == "TRUE",]
+
+sf_nk$combined <- factor(sf_nk$combined, levels = c("Pre anti-CTLA4 Non-responder",
+                                                "Pre anti-CTLA4 Responder",
+                                                "Pre anti-PD1 Non-responder",
+                                                "Pre anti-PD1 Responder",
+                                                "Pre anti-CTLA4+PD1 Non-responder",
+                                                "Pre anti-CTLA4+PD1 Responder",
+                                                "Post anti-PD1 Non-responder",
+                                                "Post anti-PD1 Responder",
+                                                "Post anti-CTLA4+PD1 Non-responder",
+                                                "Post anti-CTLA4+PD1 Responder"))
+
+sf_nk$therapy <- factor(sf_nk$therapy, levels = c("anti-CTLA4", "anti-PD1", "anti-CTLA4+PD1"))
+
+## pre-treatment
+sf_nk_pre <- sf_nk[sf_nk$status == "Pre",]
+ggplot(sf_nk_pre, aes(x=combined, y=p7, color= combined, fill = combined)) +
+  geom_boxplot(outlier.shape = NA) + theme_bw() +
+  theme(axis.text.x=element_text(size=rel(0.75), angle=45, hjust = 1),
+        axis.ticks.x=element_blank()) +
+  scale_colour_manual(values = c("Pre anti-CTLA4 Responder" = "black", 
+                                 "Pre anti-CTLA4 Non-responder" = "#21908CFF",
+                                 "Pre anti-PD1 Non-responder" = "#D95F02", 
+                                 "Pre anti-PD1 Responder" = "black",
+                                 "Pre anti-CTLA4+PD1 Responder" =  "black",
+                                 "Pre anti-CTLA4+PD1 Non-responder" = "#7570B3")) +
+  scale_fill_manual(values = c("Pre anti-CTLA4 Responder" = "#21908CFF", 
+                               "Pre anti-CTLA4 Non-responder" = "white",
+                               "Pre anti-PD1 Non-responder" = "white", 
+                               "Pre anti-PD1 Responder" = "#D95F02",
+                               "Pre anti-CTLA4+PD1 Responder" =  "#7570B3",
+                               "Pre anti-CTLA4+PD1 Non-responder" = "white")) + 
+  geom_point(aes(color =combined), size = 1.5, shape = 21, position = position_jitterdodge()) + 
+  theme(panel.spacing.x=unit(0.15, "lines"),panel.spacing.y=unit(1, "lines")) +
+  ylab("pattern weight") + xlab("treatment") + 
+  facet_wrap(~therapy, scales = "free_x") + coord_cartesian(ylim = c(0, 2.5))
+
+## on-treatment
+sf_nk_post <- sf_nk[sf_nk$status == "Post",]
+ggplot(sf_nk_post, aes(x=combined, y=p7, color= combined, fill = combined)) +
+  geom_boxplot(outlier.shape = NA) + theme_bw() +
+  theme(axis.text.x=element_text(size=rel(0.75), angle=45, hjust = 1),
+        axis.ticks.x=element_blank()) +
+  scale_colour_manual(values = c("Post anti-PD1 Non-responder" = "#D95F02", 
+                                 "Post anti-PD1 Responder" = "black",
+                                 "Post anti-CTLA4+PD1 Responder" =  "black",
+                                 "Post anti-CTLA4+PD1 Non-responder" = "#7570B3")) +
+  scale_fill_manual(values = c("Post anti-PD1 Non-responder" = "white", 
+                               "Post anti-PD1 Responder" = "#D95F02",
+                               "Post anti-CTLA4+PD1 Responder" =  "#7570B3",
+                               "Post anti-CTLA4+PD1 Non-responder" = "white")) + 
+  geom_point(aes(color =combined), size = 1.5, shape = 21, position = position_jitterdodge()) + 
+  ylab("pattern weight") + xlab("treatment") +
+  theme(panel.spacing.x=unit(0.15, "lines"),panel.spacing.y=unit(1, "lines")) +
+  facet_wrap(~therapy, scales = "free_x") + coord_cartesian(ylim = c(0, 2.5))
+
 ###################################################
 ### preprocess de Andrade data for TL
 ###################################################
@@ -177,7 +291,7 @@ for (i in 2:length(list_mtx)) {
 }
 
 ###################################################
-### transfer learning: sade-feldman
+### transfer learning: de Andrade
 ###################################################
 
 combo_mat <- as.matrix(combo)
@@ -193,4 +307,81 @@ nk_proj <- gaps2nk[["projection"]]
 colnames(nk_proj) <- meta$patient
 
 saveRDS(nk_proj, file = "da_projection.rds")
+
+###################################################
+### plotting transfer learning: de Andrade
+###################################################
+
+## fix labels
+meta[meta$tissue == "tumor",]$tissue <- "Tumor"
+meta[meta$tissue == "blood",]$tissue <- "Blood"
+meta[meta$tissue == "Center",]$tissue <- "Tumor"
+meta[meta$tissue == "Cortex",]$tissue <- "Tumor"
+meta[meta$tissue == "Nodule",]$tissue <- "Tumor"
+
+## add pattern 7 weight to meta data
+meta$p7 <- nk_proj[7,]
+
+## add in treatment annotations from supplemental file
+meta$therapy <- ""
+meta$resistance <- ""
+meta$therapy = dplyr::recode(meta$patient,
+                             "CY129" = "nivolumumab+pembrolizumab",
+                             "CY155" = "pembrolizumab",
+                             "CY158" = "ipilimumab",
+                             "CY160" = "none",
+                             "CY164" = "pembrolizumab+TVEC")
+meta$resistance = dplyr::recode(meta$patient,
+                                "CY129" = "primary",
+                                "CY155" = "primary",
+                                "CY158" = "acquired",
+                                "CY160" = "primary", 
+                                "CY164" = "acquired")
+
+meta$patient <- factor(meta$patient, levels = c("CY160", "CY155", "CY164",
+                                                "CY158", "CY129"))
+tumor <- meta[meta$tissue == "Tumor",]
+ggplot(tumor, aes(x=patient, y=p7, color= patient, fill = patient)) +
+  geom_boxplot(outlier.shape = NA) + 
+  theme_bw() +
+  theme(axis.text.x=element_text(size=rel(0.75), angle=45, hjust = 1),
+        axis.ticks.x=element_blank()) +
+  scale_colour_manual(values = c("CY160" = "#000004FF",
+                                 "CY158" = "black",
+                                 "CY155" = "#D95F02", 
+                                 "CY164" = "black",
+                                 "CY129" = "#7570B3")) +
+  scale_fill_manual(values = c("CY129" = "white",
+                               "CY155" = "white",
+                               "CY158" = "#21908CFF",
+                               "CY160" = "white", 
+                               "CY164" = "#D95F02")) +  
+  geom_point(aes(color =patient), size = 3, shape = 21, position = position_jitterdodge()) + 
+  ylab("pattern weight") + xlab("treatment") + 
+  theme(panel.spacing.x=unit(0.15, "lines"),panel.spacing.y=unit(1, "lines")) +
+  facet_wrap(~resistance, scales = "free_x") + coord_cartesian(ylim = c(-8.5, 18)) +
+  geom_hline(yintercept=3.53, linetype="dashed", color = "black", size=0.5)
+
+blood <- meta[meta$tissue == "Blood",]
+ggplot(blood, aes(x=patient, y=p7, color= patient, fill = patient)) +
+  geom_boxplot(outlier.shape = NA) + 
+  theme_bw() +
+  theme(axis.text.x=element_text(size=rel(0.75), angle=45, hjust = 1),
+        axis.ticks.x=element_blank()) +
+  scale_colour_manual(values = c("CY160" = "#000004FF",
+                                 "CY158" = "black",
+                                 "CY155" = "#D95F02", 
+                                 "CY164" = "black",
+                                 "CY129" = "#7570B3")) +
+  scale_fill_manual(values = c("CY129" = "white",
+                               "CY155" = "white",
+                               "CY158" = "#21908CFF",
+                               "CY160" = "white", 
+                               "CY164" = "#D95F02")) +  
+  geom_point(aes(color =patient), size = 3, shape = 21, position = position_jitterdodge()) + 
+  theme(panel.spacing.x=unit(0.15, "lines"),panel.spacing.y=unit(1, "lines")) +
+  ylab("pattern weight") + xlab("treatment") + 
+  facet_wrap(~resistance, scales = "free_x") + coord_cartesian(ylim = c(-8.5, 18)) +
+  geom_hline(yintercept=3.53, linetype="dashed", color = "black", size=0.5)
+
 
