@@ -295,11 +295,11 @@ for (i in 2:length(list_mtx)) {
 ###################################################
 
 combo_mat <- as.matrix(combo)
-nk.symbols <- rownames(combo)
+nk_symbols <- rownames(combo)
 gaps2nk <- projectR(data = combo_mat, 
                     loadings = gapsResult,
                     full = TRUE, 
-                    dataNames = nk.symbols)
+                    dataNames = nk_symbols)
 
 ## get projected matrix out of new TL object
 nk_proj <- gaps2nk[["projection"]]
