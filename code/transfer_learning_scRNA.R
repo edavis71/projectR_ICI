@@ -25,9 +25,6 @@ filePaths
 filePaths2 = getGEOSuppFiles("GSE139249")
 filePaths2
 
-filePaths2 = getGEOSuppFiles("GSE139249")
-filePaths2
-
 ###################################################
 ### preprocess sade-feldman data for TL
 ###################################################
