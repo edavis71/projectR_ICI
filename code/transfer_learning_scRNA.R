@@ -231,6 +231,32 @@ ggplot(sf_nk_post, aes(x=combined, y=p7, color= combined, fill = combined)) +
   facet_wrap(~therapy, scales = "free_x") + coord_cartesian(ylim = c(0, 2.5))
 
 ###################################################
+### ROC analysis: sade-feldman 
+###################################################
+tmp2$p7 <- sf_proj[7,]
+## clta-4 model 
+pdat$
+ctla4 <- tmp2[which(tmp2$therapy == "anti-CTLA4"),]
+ctla4 <- droplevels(ctla4)
+## binarized response 
+ctla4$binary <- factor(1*(ctla4$response == 'Responder'))
+table(ctla4$binary)
+table(ctla4$combined)
+mylogit <- glm(binary ~ p7, data = ctla4, family = "binomial")
+summary(mylogit)
+prob=predict(mylogit,type=c("response"))
+ctla4$prob=prob
+pred <- prediction(prob, ctla4$binary)    
+perf <- performance(pred, measure = "tpr", x.measure = "fpr") 
+auc <- performance(pred,"auc")
+auc <- unlist(slot(auc, "y.values"))
+auc
+## 0.7482411
+
+plot(perf, col="#21908CFF", lwd = 3)
+abline(0, 1) #add a 45 degree line
+
+###################################################
 ### preprocess de Andrade data for TL
 ###################################################
 
