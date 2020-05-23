@@ -11,6 +11,7 @@ library(data.table)
 library(stringr)
 library(Matrix)
 library(GEOquery)
+library(ROCR)
 
 # load CoGAPs result
 load("data/gapsResult.RData")
