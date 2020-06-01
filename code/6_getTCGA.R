@@ -13,8 +13,6 @@
 library(TCGAbiolinks)
 library(SummarizedExperiment)
 library(dplyr)
-# set working directory
-setwd('/Users/michaelkessler/Dropbox/Workspace/POSTDOC/ImmunoOncology/projectR_ICI')
 
 ###################################################
 ### download data per cancer type
