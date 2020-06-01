@@ -1,10 +1,10 @@
 TITLE
 ================
 This repository contains the data and code for our paper:
-Davis-Marcisak and Fitzgerald, et al. (2020). *TITLE, cite*.
-> [https://doi.org/{DOI-to-paper}](https://doi.org/%7BDOI-to-paper%7D)
+Davis-Marcisak and Fitzgerald, et al. (2020). *A novel mechanism of natural killer cell response to anti-CTLA-4 therapy identified by integrative analysis of mouse and human tumors, bioRxiv 2020.05.31.125625*.
+> [Preprint](https://www.biorxiv.org/content/10.1101/2020.05.31.125625v1)
 
-![Analysis overview](https://github.com/edavis71/projectR_ICI/blob/master/overview.png){:height="75%" width="75%"}
+![Analysis overview](https://github.com/edavis71/projectR_ICI/blob/master/overview.png)
 
 # Data 
 scRNA-seq datasets can be downloaded from GEO:
