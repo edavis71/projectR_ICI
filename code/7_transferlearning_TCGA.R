@@ -32,9 +32,6 @@ library(MLeval)
 # source functions
 source("lmPlot.R")
 
-# set working directory
-setwd('/Users/michaelkessler/Dropbox/Workspace/POSTDOC/ImmunoOncology/projectR_ICI')
-
 # get valid project IDs
 project_IDs <- TCGAbiolinks:::getGDCprojects()$project_id
 # get "TCGA" named projects
