@@ -12,7 +12,7 @@ library(gplots)
 library(viridis)
 
 load("data/myeloid_run7_result3.RData")
-load("monocle3_myeloid_cds_updated.rda")
+load("monocle3_gubin_cds_annotated.rda")
 ###################################################
 ### pseudotime
 ###################################################
