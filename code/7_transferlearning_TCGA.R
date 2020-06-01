@@ -51,7 +51,7 @@ metaTCGA <- readRDS("TCGA_RDS/TCGA.legacy.meta.rds")
 # and run transfer learning with projectR
 #############################################################################
 ## load CoGAPS result object
-load("myeloid_run7_result3.RData")
+load("gapsResult.RData")
 
 # remove gene duplicates from TCGA
  expTCGA <- expTCGA[match(unique(rownames(expTCGA)), rownames(expTCGA)),]
