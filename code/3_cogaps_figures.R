@@ -10,6 +10,7 @@
 library(gplots)
 library(ggplot2)
 library(CoGAPS)
+library(viridis)
 # load CoGAPs run result
 load("data/myeloid_run7_result3.RData")
 load("monocle3_gubin_cds_annotated.rda")
