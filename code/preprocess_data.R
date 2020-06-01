@@ -179,20 +179,4 @@ cds <- new_cell_data_set(joined,
 ## check summary data 
 table(pData(cds)$treatment)
 
-###################################################
-### prepare matrix for CoGAPS
-###################################################
-
-p <- exprs(cds)
-## remove genes with standard dev of 0
-map <- fData(cds)
-sum(apply(p,1,sd)==0,na.rm=T)
-keepIndex = (apply(p,1,sd)!=0)
-sum(keepIndex);sum(!keepIndex)
-p = p[keepIndex,]
-## log transform 
-p <- log2(p+1)
-## save sparse matrix
-sparse.p <- Matrix(p, sparse = T)
-## output for running CoGAPS 
-writeMM(obj = sparse.p, file="myeloid.mtx")
+save(cds, file = "monocle3_gubin_cds_init.rda")
