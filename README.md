@@ -4,7 +4,7 @@ This repository contains the data and code for our paper:
 Davis-Marcisak and Fitzgerald, et al. (2020). *TITLE, cite*.
 > [https://doi.org/{DOI-to-paper}](https://doi.org/%7BDOI-to-paper%7D)
 
-![Analysis overview](https://github.com/edavis71/projectR_ICI/blob/master/overview.png)
+![Analysis overview](https://github.com/edavis71/projectR_ICI/blob/master/overview.png){:height="75%" width="75%"}
 
 # Data 
 scRNA-seq datasets can be downloaded from GEO:
