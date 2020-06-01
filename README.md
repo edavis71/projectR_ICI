@@ -1,4 +1,4 @@
-TITLE
+Identifying conserved responses to immunotherapy
 ================
 This repository contains the data and code for our paper:
 Davis-Marcisak and Fitzgerald, et al. (2020). *A novel mechanism of natural killer cell response to anti-CTLA-4 therapy identified by integrative analysis of mouse and human tumors, bioRxiv 2020.05.31.125625*.
