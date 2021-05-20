@@ -35,12 +35,6 @@ for (cancer in cancer_types){
                     experimental.strategy = "RNA-Seq",
                     legacy = TRUE)
   
-  #-- Download harmonized data for TCGA tumor types, Hg38
-  #query <- GDCquery(cancer, 
-  #                  data.category = "Transcriptome Profiling", 
-  #                  data.type = "Gene Expression Quantification",
-  #                  workflow.type = "HTSeq - Counts") #workflow.type = "HTSeq - FPKM") 
-  
   GDCdownload(query)
   #-- parse/prepare the data for each cancer type
   data <- GDCprepare(query)
