@@ -1,8 +1,8 @@
 Identifying conserved responses to immunotherapy
 ================
 This repository contains the data and code for our paper:
-Davis-Marcisak and Fitzgerald, et al. (2020). *A novel mechanism of natural killer cell response to anti-CTLA-4 therapy identified by integrative analysis of mouse and human tumors, bioRxiv 2020.05.31.125625*.
-> [https://www.biorxiv.org/content/10.1101/2020.05.31.125625v1](https://www.biorxiv.org/content/10.1101/2020.05.31.125625v1)
+Davis-Marcisak and Fitzgerald, et al. (2020). *Transfer learning between preclinical models and human tumors identifies conserved NK cell activation signature in anti-CTLA-4 responsive tumors, bioRxiv 2020.05.31.125625*.
+> [https://www.biorxiv.org/content/10.1101/2020.05.31.125625v2](https://www.biorxiv.org/content/10.1101/2020.05.31.125625v2)
 
 ![Analysis overview](https://github.com/edavis71/projectR_ICI/blob/master/overview_fig.png)
 
