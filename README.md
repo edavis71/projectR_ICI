@@ -1,4 +1,4 @@
-Identifying conserved responses to immunotherapy
+Transfer learning identifies conserved responses to immunotherapy in mice and humans
 ================
 This repository contains the data and code for our paper:
 Davis-Marcisak and Fitzgerald, et al. (2020). *Transfer learning between preclinical models and human tumors identifies conserved NK cell activation signature in anti-CTLA-4 responsive tumors, bioRxiv 2020.05.31.125625*.
